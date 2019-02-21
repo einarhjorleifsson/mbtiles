@@ -21,7 +21,7 @@ for(i in 1:length(fil)) {
 
   print(fil[[i]])
 
-  if(!file_exists(paste0("data/rayshaded/", fil2[[i]]))) {
+  if(!file_exists(paste0("data/rayshaded/rayshaded_", fil2[[i]]))) {
     r <-
       raster(fil[[i]]) %>%
       mb_rayshade()

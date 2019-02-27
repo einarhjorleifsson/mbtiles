@@ -10,6 +10,9 @@
 # Run this as:
 #  nohup R < R/03_tile_mb-rayshaded.R --vanilla &
 #
+# NOTE: tiler reprojects raster - did not expect that.
+#       may need to be more specific in proj4string
+# NOTE: Check using align_rasters first
 # ------------------------------------------------------------------------------
 
 # Food for thought:
@@ -17,19 +20,15 @@
 
 merge <- TRUE
 
+library(tidyverse)
+library(fs)
+fil <- dir_ls("data/rayshaded") %>% as.vector()
 # 1. Merge 20 meter rasters
 
 if(merge) {
   library(gdalUtils)
   rmerged <-
-    gdalUtils::mosaic_rasters(c("data/rayshaded/rayshaded_jokulbanki_a2015_30m.tif",
-                                "data/rayshaded/rayshaded_kolbeinseyjahryggur_a2002_a2004_20m.tif",
-                                "data/rayshaded/rayshaded_kolluall_a2008_a2011_20m.tif",
-                                "data/rayshaded/rayshaded_langanesgrunn_a2005_20m.tif",
-                                "data/rayshaded/rayshaded_latragrunn_a2011_20m.tif",
-                                "data/rayshaded/rayshaded_nesdjup_a2009_20m.tif",
-                                "data/rayshaded/rayshaded_reykjaneshryggur_a2003_a2004_a2006_20m.tif",
-                                "data/rayshaded/rayshaded_sunnan_selvogsbanka_a2015_30m.tif"),
+    gdalUtils::mosaic_rasters(c(fil[2:8], fil[1]),
                               dst_dataset = "tmp.tif")
 }
 

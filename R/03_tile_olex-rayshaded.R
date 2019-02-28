@@ -29,6 +29,7 @@ library(fs)
 library(tidyverse)
 
 createtif <- FALSE
+
 tile.dir <- "/net/www/export/home/hafri/einarhj/public_html/tiles2/olex-rayshaded"
 
 if(createtif) {
@@ -41,7 +42,7 @@ if(createtif) {
     st_buffer(dist = 12000) %>%
     st_transform(crs = 4326)
 
-  dy <- 0.002 # decimal degrees, NS equal to ~222 m
+  #dy <- 0.002 # decimal degrees, NS equal to ~222 m
 
   # olex
   #  seems to be ~0.001 units lat and ~0.002 degree units lon
@@ -64,8 +65,8 @@ if(createtif) {
   d2 <-
     d %>%
     #approx 222 meters (0.002 degress north-south)
-    mutate(x = gisland::grade(x, dy*2),
-           y = gisland::grade(y, dy)) %>%
+    mutate(x = gisland::grade(x, 0.002),
+           y = gisland::grade(y, 0.001)) %>%
     # Try this instead of above
     group_by(x, y) %>%
     summarise(z = mean(z, na.rm = TRUE)) %>%

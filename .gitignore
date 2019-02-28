@@ -3,3 +3,8 @@
 .RData
 .Ruserdata
 data
+*.html
+*.tif
+*.grd
+nohup.out
+tmp

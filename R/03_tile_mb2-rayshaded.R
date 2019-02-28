@@ -9,9 +9,8 @@
 # ------------------------------------------------------------------------------
 
 
-dy <- 0.002 # decimal degrees, 0.001 equal to ~111 m
+dy <- 0.0015 # decimal degrees, 0.001 equal to ~111 m
 
-createtif <- TRUE
 
 library(raster)
 library(rayshader)
@@ -29,6 +28,7 @@ res <- list()
 # ------------------------------------------------------------------------------
 # 01 Arnarfjordur
 
+print("Arnarfjordur")
 counter <- 1
 
 fil <- "https://www.hafogvatn.is/static/files/Gamli_vefur/arn20m.zip"
@@ -42,20 +42,23 @@ res[[counter]] <-
 
 # ------------------------------------------------------------------------------
 # 02 Drekasvæðið
+#  NOTE: Not used here
 
-counter <- counter + 1
+#counter <- counter + 1
 
-fil <- "https://www.hafogvatn.is/static/files/Gamli_vefur/dreki_100m.zip"
-download.file(fil, destfile = "tmp/tmp.zip")
-unzip("tmp/tmp.zip", exdir = "tmp")
+#fil <- "https://www.hafogvatn.is/static/files/Gamli_vefur/dreki_100m.zip"
+#download.file(fil, destfile = "tmp/tmp.zip")
+#unzip("tmp/tmp.zip", exdir = "tmp")
 
-res[[counter]] <-
-  read_delim("tmp/Dreki_100m.txt", col_names = c("y", "x", "z"), delim = "\t") %>%
-  select(x,y,z) %>%
-  mutate(z = -z)
+#res[[counter]] <-
+#  read_delim("tmp/Dreki_100m.txt", col_names = c("y", "x", "z"), delim = "\t") %>%
+#  select(x,y,z) %>%
+#  mutate(z = -z)
 
 # ------------------------------------------------------------------------------
 # 03 Hali Dohrn
+
+print("HaliDohrn")
 
 counter <- counter + 1
 
@@ -71,6 +74,8 @@ res[[counter]] <-
 # ------------------------------------------------------------------------------
 # 04 Isafjarðardjúp
 
+print("Isafjardardjup")
+
 counter <- counter + 1
 
 fil <- "https://www.hafogvatn.is/static/files/Gamli_vefur/isaf_nytt_20m.zip"
@@ -85,6 +90,8 @@ res[[counter]] <-
 # ------------------------------------------------------------------------------
 # 08 Kötluhryggir
 
+print("Kotluhryggir")
+
 counter <- counter + 1
 
 fil <- "https://www.hafogvatn.is/static/files/Gamli_vefur/kotluhr_100m.zip"
@@ -94,11 +101,14 @@ unzip("tmp/tmp.zip", exdir = "tmp")
 res[[counter]] <-
   read_table("tmp/kotluhr_100m.dat", col_names = c("y","x","z")) %>%
   select(x,y,z) %>%
+  filter(y > 63.5) %>%
   mutate(z = -z)
 
 
 # ------------------------------------------------------------------------------
 # 11 Lónsdjúp
+
+print("Lonsdjup")
 
 counter <- counter + 1
 
@@ -115,6 +125,8 @@ res[[counter]] <-
 # ------------------------------------------------------------------------------
 # 15 Skerjadjúp
 
+print("Skerjadjup")
+
 counter <- counter + 1
 
 fil <- "https://www.hafogvatn.is/static/files/Gamli_vefur/skerjadjup.txt"
@@ -126,6 +138,8 @@ res[[counter]] <-
 
 # ------------------------------------------------------------------------------
 # 15 Vesturdjúp
+
+print("Vesturdjup")
 
 counter <- counter + 1
 
@@ -140,6 +154,8 @@ res[[counter]] <-
 # ------------------------------------------------------------------------------
 # 16 Víkuráll
 
+print("Víkuráll")
+
 counter <- counter + 1
 
 fil <- "https://www.hafogvatn.is/static/files/Gamli_vefur/vikurall.zip"
@@ -151,50 +167,52 @@ res[[counter]] <-
   select(x,y,z) %>%
   mutate(z = -z)
 
-if(createtif) {
+d <-
+  res %>%
+  bind_rows() %>%
+  mutate(x = gisland::grade(x, 2 * dy),
+         y = gisland::grade(y, dy)) %>%
+  group_by(x, y) %>%
+  summarise(z = mean(z, na.rm = TRUE))
+r <- rasterFromXYZ(d)
+proj4string(r) <- "+proj=longlat"
+
+m <- matrix(raster::extract(r, raster::extent(r), buffer = 1000),
+            nrow = ncol(r), ncol = nrow(r))
+print("Rayshading")
+# add a raytraced layer from sun direction
+
+rayshaded <-
+  m %>%
+  sphere_shade(zscale = 5)
 
 
-  d <-
-    res %>%
-    bind_rows() %>%
-    mutate(x = gisland::grade(x, 2 * dy),
-           y = gisland::grade(y, dy)) %>%
-    group_by(x, y) %>%
-    summarise(z = mean(z, na.rm = TRUE))
-  r <- rasterFromXYZ(d)
-  proj4string(r) <- "+proj=longlat"
+print("Reconstructing raster brick")
+rb <- raster::brick(rayshaded,
+                    xmn = 0.5, xmx = dim(rayshaded)[2] + 0.5, ymn = 0.5,
+                    ymx = dim(rayshaded)[1] + 0.5)
+proj4string(rb) <- proj4string(r)
+extent(rb) <- extent(r)
+values(rb[[1]]) <- scales::rescale(values(rb[[1]]), from = c(0, 1), to = c(0, 255))
+values(rb[[2]]) <- scales::rescale(values(rb[[2]]), from = c(0, 1), to = c(0, 255))
+values(rb[[3]]) <- scales::rescale(values(rb[[3]]), from = c(0, 1), to = c(0, 255))
+j <- is.na(values(r))
+values(rb[[1]])[j] <- NA
+values(rb[[2]])[j] <- NA
+values(rb[[3]])[j] <- NA
 
-  m <- matrix(raster::extract(r, raster::extent(r), buffer = 1000),
-              nrow = ncol(r), ncol = nrow(r))
-  print("Rayshading")
-  # add a raytraced layer from sun direction
-
-  rayshaded <-
-    m %>%
-    sphere_shade(zscale = 5)
+print("Writing raster")
+writeRaster(rb,
+            "data/mb-xyz.tif",
+            options = "INTERLEAVE=BAND",
+            overwrite = TRUE)
 
 
-  print("Reconstructing raster brick")
-  rb <- raster::brick(rayshaded,
-                      xmn = 0.5, xmx = dim(rayshaded)[2] + 0.5, ymn = 0.5,
-                      ymx = dim(rayshaded)[1] + 0.5)
-  proj4string(rb) <- proj4string(r)
-  extent(rb) <- extent(r)
-  values(rb[[1]]) <- scales::rescale(values(rb[[1]]), from = c(0, 1), to = c(0, 255))
-  values(rb[[2]]) <- scales::rescale(values(rb[[2]]), from = c(0, 1), to = c(0, 255))
-  values(rb[[3]]) <- scales::rescale(values(rb[[3]]), from = c(0, 1), to = c(0, 255))
-  j <- is.na(values(r))
-  values(rb[[1]])[j] <- NA
-  values(rb[[2]])[j] <- NA
-  values(rb[[3]])[j] <- NA
-
-  print("Writing raster")
-  writeRaster(rb,
-              "data/mb-xyz.tif",
-              options = "INTERLEAVE=BAND",
-              overwrite = TRUE)
-}
 
 tile(file = "data/mb-xyz.tif",
      tiles = "/net/www/export/home/hafri/einarhj/public_html/tiles2/mb2-rayshaded",
      zoom = "4-12")
+
+
+system("chmod -R a+rx /net/www/export/home/hafri/einarhj/public_html/tiles2/mb2-rayshaded")
+

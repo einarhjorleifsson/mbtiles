@@ -24,15 +24,22 @@ smh.sf <-
   group_by(index) %>%
   summarise(do_union = FALSE) %>%
   st_cast('LINESTRING')
-
+#st_write(smh.sf, "/u3/haf/einarhj/raster/smh.shp")
 fishtrawl <- read_rds("~/prj2/vms2/data/raster/fishtrawl.rds")
 nephrops <- read_rds("~/prj2/vms2/data/raster/nephrops.rds")
 shrimp <- read_rds("~/prj2/vms2/data/raster/shrimp.rds")
+dredge <- read_rds("~/prj2/vms2/data/raster/dredge.rds")
+#writeRaster(fishtrawl, filename = "/u3/haf/einarhj/raster/fishtrawl.tif")
+#writeRaster(nephrops, filename = "/u3/haf/einarhj/raster/nephrops.tif")
+#writeRaster(shrimp, filename = "/u3/haf/einarhj/raster/shrimp.tif")
+#writeRaster(dredge, filename = "/u3/haf/einarhj/raster/dredge.tif")
+
 
 inf <- inferno(12, alpha = 1, begin = 0, end = 1, direction = -1)
 pal.fishtrawl <- colorNumeric(inf, values(fishtrawl), na.color = "transparent")
 pal.nephrops <- colorNumeric(inf, values(nephrops), na.color = "transparent")
 pal.shrimp <- colorNumeric(inf, values(shrimp), na.color = "transparent")
+pal.dredge <- colorNumeric(inf, values(dredge), na.color = "transparent")
 
 
 smb <-
@@ -52,6 +59,7 @@ smb.sf <-
   group_by(index) %>%
   summarise(do_union = FALSE) %>%
   st_cast('LINESTRING')
+#st_write(smb.sf, "/u3/haf/einarhj/raster/smb.shp")
 fil <- "~/stasi/gis/sjomaelingar/data_spatial_polygons/z0500m_polygons.shp"
 z500 <-
   read_sf(fil) %>%
@@ -104,9 +112,12 @@ l <-
                maxBytes = Inf) %>%
   addRasterImage(fishtrawl, colors = pal.fishtrawl, opacity = 1, group = "Fish trawl",
                  maxBytes = Inf) %>%
-  addLayersControl(overlayGroups = c("Topography", "SMB", "SMH", "Fish trawl", "Nephrops trawl", "Shrimp trawl"),
+  addRasterImage(dredge, colors = pal.dredge, opacity = 1, group = "Dredge",
+                 maxBytes = Inf) %>%
+  addLayersControl(overlayGroups = c("Topography", "SMB", "SMH", "Fish trawl", "Nephrops trawl", "Shrimp trawl", "Dredge"),
                    options = layersControlOptions(collapsed = FALSE)) %>%
-  hideGroup(c("SMH", "Fish trawl", "Nephrops trawl", "Shrimp trawl"))
+  hideGroup(c("SMH", "Fish trawl", "Nephrops trawl", "Shrimp trawl", "Dredge")) %>%
+  addScaleBar(position = "bottomleft")
 
 library(htmlwidgets)
 saveWidget(l, file = "/net/www/export/home/hafri/einarhj/public_html/mbtiles.html", selfcontained = FALSE)
